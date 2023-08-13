@@ -32,7 +32,8 @@ with open(args["config"], "r") as f:
 inf_model = None
 for engine in config["models"].keys():
     inf_model = config["models"][engine]["path"]
-model = pipeline("text-generation", model=inf_model, device=args["device"], load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, torch_dtype=torch.float16)
+# model = pipeline("text-generation", model=inf_model, device=args["device"], load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, torch_dtype=torch.float16)
+model = pipeline("text-generation", model=inf_model, device=args["device"], torch_dtype=torch.float16)
 
 tokenizer_with_prefix_space = AutoTokenizer.from_pretrained(inf_model, add_prefix_space=True)
 
