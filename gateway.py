@@ -22,7 +22,7 @@ app.add_middleware(
 
 args = {
     "config": os.getenv("GATEWAY_CONF", "gateway-conf.yaml"),
-    "port": int(os.getenv("GATEWAY_PORT", 80))
+    "port": int(os.getenv("GATEWAY_PORT", 8000))
 }
 
 with open(args["config"], "r") as f:
