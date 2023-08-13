@@ -18,5 +18,5 @@ pip install -r requirements/inference.txt
 
 4. Run
 ```
-./run.sh
+chmod +x ./start.sh && ./start.sh
 ```
