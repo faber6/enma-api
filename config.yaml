@@ -4,3 +4,4 @@ models:
     author: pygmalion
     description: pygmalion-2.7b
     url: http://192.168.2.33:8080/completion
+    path: models/pygmalion-2.7b

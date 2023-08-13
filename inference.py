@@ -1,6 +1,7 @@
 import os
 import uvicorn
 import torch
+import yaml
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,18 +21,20 @@ app.add_middleware(
 )
 
 args = {
-    "model": os.getenv("INFERENCE_MODEL", "models/pygmalion-2.7b"),
     "device": int(os.getenv("INFERENCE_DEVICE", 0)),
+    "config": os.getenv("GATEWAY_CONF", "config.yaml"),
     "port": int(os.getenv("INFERENCE_PORT", 8080))
 }
 
-# load in fp16
-# model = pipeline("text-generation", model=args["model"], device=args["device"], torch_dtype=torch.float16)
+with open(args["config"], "r") as f:
+    config = yaml.safe_load(f)
+    
+inf_model = None
+for engine in config["models"].keys():
+    inf_model = config["models"][engine]["path"]
+model = pipeline("text-generation", model=inf_model, device=args["device"], load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, torch_dtype=torch.float16)
 
-# load in 4bit
-model = pipeline("text-generation", model=args["model"], device=args["device"], load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, torch_dtype=torch.float16)
-
-tokenizer_with_prefix_space = AutoTokenizer.from_pretrained(args["model"], add_prefix_space=True)
+tokenizer_with_prefix_space = AutoTokenizer.from_pretrained(inf_model, add_prefix_space=True)
 
 def get_tokens_as_list(word_list):
     "Converts a sequence of words into a list of tokens"
