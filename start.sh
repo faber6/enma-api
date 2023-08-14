@@ -1,9 +1,9 @@
 #!/bin/sh
-venv/bin/python gateway.py &
+venv/bin/uvicorn gateway:app --host=0.0.0.0 --port=8000 &
 pid1=$!
 echo "started gateway: [${pid1}]"
 
-venv/bin/python inference.py &
+venv/bin/uvicorn inference:app --host=0.0.0.0 --port=8080 &
 pid2=$!
 echo "started inference: [${pid2}]"
 

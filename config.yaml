@@ -2,8 +2,9 @@
 models:
   pygmalion:
     author: pygmalion
-    description: pygmalion-1.3b
+    description: pygmalion-6b
     url: http://0.0.0.0:8080/completion
-    path: PygmalionAI/pygmalion-1.3b
+    path: PygmalionAI/pygmalion-6b
 load-in-4b: true
 load-in-8b: false
+device-map: balanced

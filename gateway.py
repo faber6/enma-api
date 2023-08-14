@@ -28,6 +28,7 @@ args = {
 with open(args["config"], "r") as f:
     config = yaml.safe_load(f)
 
+
 @app.get("/engines")
 async def engines():
     all_engines = []
@@ -39,6 +40,7 @@ async def engines():
         })
     return {"engines": all_engines}
 
+
 @app.post("/completion")
 async def completion(completion: Completion):
     if completion.engine is None:
@@ -48,11 +50,13 @@ async def completion(completion: Completion):
         async with session.post(engine_endpoint, json=completion.dict()) as resp:
             return await resp.json()
 
+
 @app.post("/feedback")
 async def feedback(f_: Feedback):
     with open('feedback.jsonl', 'a') as f:
         f.write(f'{f_.json()}\n')
     return "OK"
+
 
 @app.get("/")
 async def root():

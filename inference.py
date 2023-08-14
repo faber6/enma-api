@@ -5,7 +5,6 @@ import yaml
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, StoppingCriteria, BitsAndBytesConfig
 
 from models import Completion
 
@@ -21,7 +20,6 @@ app.add_middleware(
 )
 
 args = {
-    "device": int(os.getenv("INFERENCE_DEVICE", 0)),
     "config": os.getenv("GATEWAY_CONF", "config.yaml"),
     "port": int(os.getenv("INFERENCE_PORT", 8080))
 }
@@ -33,7 +31,11 @@ inf_model = None
 for engine in config["models"].keys():
     inf_model = config["models"][engine]["path"]
 
-if config['load-in-4b'] == True:
+if config['load-in-4b'] or config['load-in-8b']:
+    from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, StoppingCriteria, BitsAndBytesConfig
+
+    tokenizer = AutoTokenizer.from_pretrained(inf_model)
+
     nf4_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
@@ -41,45 +43,50 @@ if config['load-in-4b'] == True:
         bnb_4bit_compute_dtype=torch.bfloat16
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(inf_model)
-    model = AutoModelForCausalLM.from_pretrained(
-        inf_model, pad_token_id=tokenizer.eos_token_id, device_map="auto", quantization_config=nf4_config)
-elif config['load-in-8b'] == True:
-    tokenizer = AutoTokenizer.from_pretrained(inf_model)
-    model = AutoModelForCausalLM.from_pretrained(
-        inf_model, pad_token_id=tokenizer.eos_token_id, device_map="auto", load_in_8bit=True)
+    auto_config = AutoConfig.from_pretrained(inf_model)
+
+    if config['load-in-4b']:
+        model = AutoModelForCausalLM.from_pretrained(
+            inf_model, pad_token_id=tokenizer.eos_token_id, device_map=config['device-map'], quantization_config=nf4_config)
+
+    elif config['load-in-8b']:
+        model = AutoModelForCausalLM.from_pretrained(
+            inf_model, pad_token_id=tokenizer.eos_token_id, device_map=config['device-map'], load_in_8bit=True)
+
+    class MyStoppingCriteria(StoppingCriteria):
+        def __init__(self, target_sequence, prompt):
+            self.target_sequence = target_sequence
+            self.prompt = prompt
+
+        def __call__(self, input_ids, scores, **kwargs):
+            # Get the generated text as a string
+            generated_text = tokenizer.decode(input_ids[0])
+            generated_text = generated_text.replace(self.prompt, '')
+            # Check if the target sequence appears in the generated text
+            if self.target_sequence in generated_text:
+                return True  # Stop generation
+            return False  # Continue generation
+
+        def __len__(self):
+            return 1
+
+        def __iter__(self):
+            yield self
+
 else:
-    model = pipeline("text-generation", model=inf_model,
-                     device=args["device"], torch_dtype=torch.float16)
+    from transformers import pipeline
 
-
-class MyStoppingCriteria(StoppingCriteria):
-    def __init__(self, target_sequence, prompt):
-        self.target_sequence = target_sequence
-        self.prompt = prompt
-
-    def __call__(self, input_ids, scores, **kwargs):
-        # Get the generated text as a string
-        generated_text = tokenizer.decode(input_ids[0])
-        generated_text = generated_text.replace(self.prompt, '')
-        # Check if the target sequence appears in the generated text
-        if self.target_sequence in generated_text:
-            return True  # Stop generation
-        return False  # Continue generation
-
-    def __len__(self):
-        return 1
-
-    def __iter__(self):
-        yield self
+    model = pipeline("text-generation", model=inf_model, pad_token_id=tokenizer.eos_token_id,
+                     device_map=config['device-map'], torch_dtype=torch.float16)
 
 
 @app.post("/completion")
 async def completion(completion: Completion):
     try:
-        if config['load-in-4b'] == True or config['load-in-8b'] == True:
+        if config['load-in-4b'] or config['load-in-8b']:
             inputs = tokenizer(completion.prompt,
                                return_tensors="pt").to('cuda')
+
             output = model.generate(
                 **inputs,
                 max_new_tokens=completion.max_new_tokens,
@@ -94,6 +101,7 @@ async def completion(completion: Completion):
                     completion.stop_sequence, completion.prompt)
             )
             return [{'generated_text': tokenizer.decode(output[0], skip_special_tokens=True)}]
+
         else:
             return model(
                 completion.prompt,
@@ -107,6 +115,7 @@ async def completion(completion: Completion):
                 num_return_sequences=completion.num_return_sequences,
                 stop_sequence=completion.stop_sequence
             )
+
     except Exception as e:
         return {"error": str(e)}
 
