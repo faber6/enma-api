@@ -2,7 +2,7 @@
 Language Model Inference API
 
 ## Installations
-0. Virtual Env
+0. Virtual env
 ```
 python3 -m venv venv && source venv/bin/activate
 ```
@@ -12,11 +12,9 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements/inference.txt
 ```
 
-2. Download models
+2. Edit config.yaml
 
-3. Edit config.yaml
-
-4. Run
+3. Run
 ```
 chmod +x ./start.sh && ./start.sh
 ```
