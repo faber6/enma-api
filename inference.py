@@ -44,6 +44,10 @@ if config['load-in-4b'] == True:
     tokenizer = AutoTokenizer.from_pretrained(inf_model)
     model = AutoModelForCausalLM.from_pretrained(
         inf_model, pad_token_id=tokenizer.eos_token_id, device_map="auto", quantization_config=nf4_config)
+elif config['load-in-8b'] == True:
+    tokenizer = AutoTokenizer.from_pretrained(inf_model)
+    model = AutoModelForCausalLM.from_pretrained(
+        inf_model, pad_token_id=tokenizer.eos_token_id, device_map="auto", load_in_8bit=True)
 else:
     model = pipeline("text-generation", model=inf_model,
                      device=args["device"], torch_dtype=torch.float16)
@@ -73,7 +77,7 @@ class MyStoppingCriteria(StoppingCriteria):
 @app.post("/completion")
 async def completion(completion: Completion):
     try:
-        if config['load-in-4b'] == True:
+        if config['load-in-4b'] == True or config['load-in-8b'] == True:
             inputs = tokenizer(completion.prompt,
                                return_tensors="pt").to('cuda')
             output = model.generate(
