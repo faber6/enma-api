@@ -5,7 +5,7 @@ import yaml
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, StoppingCriteria
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, StoppingCriteria, BitsAndBytesConfig
 
 from models import Completion
 
@@ -34,9 +34,16 @@ for engine in config["models"].keys():
     inf_model = config["models"][engine]["path"]
 
 if config['load-in-4b'] == True:
+    nf4_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
+
     tokenizer = AutoTokenizer.from_pretrained(inf_model)
-    model = AutoModelForCausalLM.from_pretrained(inf_model, pad_token_id=tokenizer.eos_token_id, device_map="auto",
-                                                 load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4")
+    model = AutoModelForCausalLM.from_pretrained(
+        inf_model, pad_token_id=tokenizer.eos_token_id, device_map="auto", quantization_config=nf4_config)
 else:
     model = pipeline("text-generation", model=inf_model,
                      device=args["device"], torch_dtype=torch.float16)
@@ -79,7 +86,8 @@ async def completion(completion: Completion):
                 do_sample=completion.do_sample,
                 penalty_alpha=completion.penalty_alpha,
                 num_return_sequences=completion.num_return_sequences,
-                stopping_criteria=MyStoppingCriteria(completion.stop_sequence, completion.prompt)
+                stopping_criteria=MyStoppingCriteria(
+                    completion.stop_sequence, completion.prompt)
             )
             return [{'generated_text': tokenizer.decode(output[0], skip_special_tokens=True)}]
         else:
