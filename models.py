@@ -15,7 +15,8 @@ class Engines(BaseModel):
 class Completion(BaseModel):
     prompt: str
     engine: Optional[str] = None
-    max_new_tokens: Optional[int] = 10
+    max_new_tokens: Optional[int] = 20
+    eos_token_id: Optional[int] = 198
     temperature: Optional[float] = None
     top_p: Optional[float] = None
     top_k: Optional[int] = None
@@ -26,7 +27,7 @@ class Completion(BaseModel):
     num_return_sequences: Optional[int] = 1
     stop_sequence: Optional[str] = "."
     bad_words: Optional[list] = None
-    eos_token_id: Optional[int] = 198
+    sequence_bias: Optional[dict] = None
 
 
 class Feedback(BaseModel):

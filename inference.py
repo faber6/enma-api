@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import Completion
-from utils import get_tokens_as_list
+from utils import get_tokens_as_list, seqbias_to_tuple
 from transformers import AutoTokenizer
 
 
@@ -63,6 +63,7 @@ async def completion(completion: Completion):
             output = model.generate(
                 **inputs,
                 max_new_tokens=completion.max_new_tokens,
+                eos_token_id=completion.eos_token_id,
                 temperature=completion.temperature,
                 top_p=completion.top_p,
                 top_k=completion.top_k,
@@ -73,8 +74,9 @@ async def completion(completion: Completion):
                 stopping_criteria=MyStoppingCriteria(
                     completion.stop_sequence, completion.prompt, tokenizer),
                 bad_words_ids=get_tokens_as_list(
-                    completion.bad_words, tokenizer_with_prefix_space),
-                eos_token_id=completion.eos_token_id
+                    tokenizer_with_prefix_space, completion.bad_words),
+                sequence_bias=seqbias_to_tuple(
+                    tokenizer_with_prefix_space, completion.sequence_bias)
             )
             return [{'generated_text': tokenizer.decode(output[0], skip_special_tokens=True)}]
 
@@ -82,6 +84,7 @@ async def completion(completion: Completion):
             return model(
                 completion.prompt,
                 max_new_tokens=completion.max_new_tokens,
+                eos_token_id=completion.eos_token_id,
                 temperature=completion.temperature,
                 top_p=completion.top_p,
                 top_k=completion.top_k,
@@ -91,8 +94,9 @@ async def completion(completion: Completion):
                 num_return_sequences=completion.num_return_sequences,
                 stop_sequence=completion.stop_sequence,
                 bad_words_ids=get_tokens_as_list(
-                    completion.bad_words, tokenizer_with_prefix_space),
-                eos_token_id=completion.eos_token_id
+                    tokenizer_with_prefix_space, completion.bad_words),
+                sequence_bias=seqbias_to_tuple(
+                    tokenizer_with_prefix_space, completion.sequence_bias)
             )
 
     except Exception as e:
