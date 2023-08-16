@@ -1,4 +1,6 @@
 #!/bin/sh
+cd $(dirname "$0")
+
 venv/bin/uvicorn gateway:app --host=0.0.0.0 --port=8000 &
 pid1=$!
 echo "started gateway: [${pid1}]"
